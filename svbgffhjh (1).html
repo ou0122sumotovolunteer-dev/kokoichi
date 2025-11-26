@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>イベント詳細ページ（フル表示）</title>
+<style>
+  :root { --bg:#f5f7fb; --card:#fff; --accent:#ff3b30; --line:#dfe4ee; }
+  body{margin:0;font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN";background:var(--bg);color:#222;}
+
+  .hero{
+    width:100%;
+    height:280px;
+    background:#ccc center/cover no-repeat;
+    border-radius:0 0 28px 28px;
+    box-shadow:0 4px 24px rgba(0,0,0,0.05);
+  }
+
+  .wrap{
+    max-width:820px;
+    margin:0 auto;
+    padding:20px;
+  }
+
+  h1{margin:0;font-size:28px;padding-top:12px;font-weight:700;}
+  .time-place{margin-top:10px;color:#555;font-size:15px;}
+
+  .pill-box{margin-top:14px;}
+  .pill{
+    display:inline-block;
+    padding:6px 10px;
+    border-radius:999px;
+    background:#eef4ff;
+    border:1px solid #d6e2ff;
+    color:#234;
+    font-size:13px;
+    margin-right:6px;
+  }
+
+  .section{margin-top:26px;padding:20px;background:var(--card);border-radius:16px;box-shadow:0 4px 14px rgba(0,0,0,0.06);}  
+  .section h2{margin:0 0 12px 0;font-size:20px;}
+  .section p{margin:0;line-height:1.6;color:#444;}
+
+  .actions{
+    margin-top:20px;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+  }
+  .btn{
+    background:#f4f6fa;
+    padding:14px;
+    border-radius:14px;
+    text-align:center;
+    font-size:15px;
+    cursor:pointer;
+    border:1px solid #e3e7ef;
+    transition:0.2s;
+  }
+  .btn:hover{background:#e9eef7;}
+
+  .favorite-active{
+    background:#ffeaf0;
+    border-color:#ffb8c6;
+  }
+
+  /* not-found */
+  .notfound{max-width:720px;margin:36px auto;padding:24px;background:#fff;border-radius:12px;text-align:center;border:1px solid var(--line);}
+  .notfound h2{margin:0 0 8px 0}
+  .notfound p{color:#666}
+</style>
+</head>
+<body>
+
+<div id="hero" class="hero" aria-hidden="true"></div>
+
+<div class="wrap" id="contentWrap">
+  <h1 id="evTitle">イベントタイトル</h1>
+  <div class="time-place" id="evTimePlace"></div>
+  <div class="pill-box" id="evCategory"></div>
+
+  <div class="actions">
+    <div class="btn" id="favBtn">❤ お気に入り</div>
+    <div class="btn" id="shareBtn">🔗 共有（フル）</div>
+    <div class="btn" id="shareSelectBtn">🔗 共有（選択）</div>
+    <div class="btn" id="gcalBtn">🗓 Googleカレンダー</div>
+  </div>
+
+  <div class="section">
+    <h2>概要</h2>
+    <p id="evDesc"></p>
+  </div>
+
+  <div class="section">
+    <h2>詳細情報</h2>
+    <p id="evDetails"></p>
+  </div>
+</div>
+
+<script>
+// ダミーデータ（タイムテーブル版と同じ構造で連携）
+let events = [
+  {id:101,title:'オープニングトーク',start:'10:00',end:'10:30',place:'メインホール',description:'イベントのはじまりの挨拶です。',details:'出演者: AAA\n持ち物: 特になし',image:'file:///mnt/data/Screenshot 2025-11-23 22.29.07.png',category:'stage,performance',favorite:false},
+  {id:102,title:'ワークショップA',start:'11:00',end:'12:00',place:'Room A',description:'クリエイティブなワークショップ',details:'対象: 初心者歓迎\n注意: 汚れても良い服装で',image:'file:///mnt/data/Screenshot 2025-11-23 22.34.41.png',category:'kids,performance',favorite:false}
+];
+
+// お気に入り状態を反映
+const favIds = JSON.parse(localStorage.getItem('fav_ids')||'[]');
+events.forEach(e=>{ e.favorite = favIds.includes(e.id) });
+
+// URLパラメータから対象イベントを取得（?ev=101 or ?id=101）
+const params = new URLSearchParams(location.search);
+const evId = Number(params.get('ev') || params.get('id'));
+const ev = events.find(e=>e.id===evId);
+
+// --- 描画 ---
+function renderPage(){
+  // guard: ev must exist
+  if(!ev){
+    // show a friendly not-found UI instead of trying to read ev.image
+    const wrap = document.getElementById('contentWrap');
+    wrap.innerHTML = `\n      <div class="notfound">\n        <h2>イベントが見つかりません</h2>\n        <p>指定されたイベントは存在しないか、URLが間違っています。</p>\n        <p>トップのタイムテーブルに戻る場合は <a href="/">こちら</a> をクリックしてください。</p>\n      </div>\n    `;
+    // clear hero background
+    const hero = document.getElementById('hero');
+    hero.style.backgroundImage = '';
+    return;
+  }
+
+  const hero = document.getElementById('hero');
+  // protect against missing/invalid image
+  try{
+    if(ev.image) hero.style.backgroundImage = `url('${ev.image}')`;
+    else hero.style.backgroundImage = '';
+  }catch(e){ hero.style.backgroundImage = ''; }
+
+  document.getElementById('evTitle').textContent = ev.title;
+  document.getElementById('evTimePlace').textContent = `${ev.start} - ${ev.end} ／ ${ev.place}`;
+  document.getElementById('evDesc').textContent = ev.description;
+  document.getElementById('evDetails').innerHTML = (ev.details||'').replace(/\n/g,'<br>');
+
+  // カテゴリー
+  const catBox = document.getElementById('evCategory');
+  catBox.innerHTML = '';
+  (ev.category||'').split(',').map(c=>c.trim()).filter(Boolean).forEach(c=>{
+    const span=document.createElement('span');
+    span.className='pill';
+    span.textContent=c;
+    catBox.appendChild(span);
+  });
+
+  // お気に入りボタン
+  const favBtn = document.getElementById('favBtn');
+  favBtn.classList.remove('favorite-active');
+  favBtn.textContent = '❤ お気に入り';
+  if(ev.favorite){ favBtn.classList.add('favorite-active'); favBtn.textContent='★ お気に入り済'; }
+
+  favBtn.onclick = ()=>{
+    ev.favorite = !ev.favorite;
+    const ids = JSON.parse(localStorage.getItem('fav_ids')||'[]');
+    if(ev.favorite){ if(!ids.includes(ev.id)) ids.push(ev.id); }
+    else{
+      const idx = ids.indexOf(ev.id);
+      if(idx>=0) ids.splice(idx,1);
+    }
+    localStorage.setItem('fav_ids',JSON.stringify(ids));
+    // update UI without re-running full render to keep stable state
+    if(ev.favorite){ favBtn.classList.add('favorite-active'); favBtn.textContent='★ お気に入り済'; }
+    else { favBtn.classList.remove('favorite-active'); favBtn.textContent='❤ お気に入り'; }
+  };
+
+  // 共有 (フルURL by default)
+  document.getElementById('shareBtn').onclick = async ()=>{
+    const base = location.origin + location.pathname;
+    const fullUrl = `${base}?ev=${ev.id}`;
+    const subUrl = `${base}?ev=${ev.id}&mode=sub`;
+    if (navigator.share) {
+      try { await navigator.share({title:ev.title,text:ev.description,url:fullUrl}); } catch(e){}
+    } else { prompt('フルページの共有リンクです', fullUrl); }
+  };
+
+  // 共有（選択）
+  document.getElementById('shareSelectBtn').onclick = ()=>{
+    const base = location.origin + location.pathname;
+    const fullUrl = `${base}?ev=${ev.id}`;
+    const subUrl = `${base}?ev=${ev.id}&mode=sub`;
+    const choice = prompt('共有するリンクを選んでください:\n1: フルページ\n2: サブページ');
+    if(choice === '1'){
+      prompt('フルページの共有リンクです', fullUrl);
+    } else if(choice === '2'){
+      prompt('サブページの共有リンクです', subUrl);
+    }
+  };
+
+  // Googleカレンダー
+  document.getElementById('gcalBtn').onclick = ()=>{
+    const start = gcalDateTime(ev.start);
+    const end = gcalDateTime(ev.end);
+    const url = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+      +'&text='+encodeURIComponent(ev.title)
+      +'&details='+encodeURIComponent(ev.description)
+      +'&location='+encodeURIComponent(ev.place)
+      +'&dates='+encodeURIComponent(start+'/'+end);
+    window.open(url,'_blank');
+  };
+}
+
+// Only call renderPage after DOM is ready
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', renderPage);
+} else { renderPage(); }
+
+// UTC変換
+function gcalDateTime(hhmm){
+  const [hh,mm]=String(hhmm||'').split(':').map(Number);
+  const now=new Date();
+  const local=new Date(now.getFullYear(),now.getMonth(),now.getDate(),hh||0,mm||0,0);
+  const Y=local.getUTCFullYear();
+  const M=String(local.getUTCMonth()+1).padStart(2,'0');
+  const D=String(local.getUTCDate()).padStart(2,'0');
+  const H=String(local.getUTCHours()).padStart(2,'0');
+  const Min=String(local.getUTCMinutes()).padStart(2,'0');
+  const S='00';
+  return `${Y}${M}${D}T${H}${Min}${S}Z`;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>タイムテーブル（10:00〜17:00）</title>
+<style>
+  :root { --bg: #F0F8FF; --card: #fff; --accent: #ff3b30; --line:#dfe8f2; }
+  body{margin:0;font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Segoe UI",Roboto,Arial;background:var(--bg);color:#222}
+  .wrap{max-width:980px;margin:28px auto;padding:20px}
+  .search{display:flex;gap:10px;margin-bottom:18px}
+  .search input{flex:1;padding:10px;border-radius:12px;border:1px solid #cfcfcf;background:#fff}
+  .search button{padding:10px 14px;border-radius:10px;border:0;background:#e8f2ff;cursor:pointer}
+
+  .timeline{position:relative;background:var(--card);padding:24px 24px 40px 96px;border-radius:16px;border-left:2px solid #cfcfcf;box-shadow:0 6px 18px rgba(3,20,60,0.04)}
+  .time-row{position:absolute;left:0;right:0}
+  .tick{position:absolute;left:0;right:0;border-top:1px solid var(--line);height:0}
+  .tick.full{border-top:1.6px solid #bdbdbd}
+  .label{position:absolute;left:-78px;font-size:14px;color:#444;top:-8px}
+
+  .event-box{position:absolute;left:110px;width:320px;background:linear-gradient(180deg,#fff,#fbfdff);border-radius:12px;padding:10px;border:1px solid #e3e9f0;box-shadow:0 8px 24px rgba(9,30,66,0.06);cursor:pointer;box-sizing:border-box}
+  .event-box .title{font-weight:700;margin-bottom:6px}
+  .event-box .meta{font-size:13px;color:#666}
+  .event-box img{width:100%;height:96px;object-fit:cover;border-radius:8px;margin-bottom:8px}
+
+  .now-line{position:absolute;left:0;right:0;border-top:2px solid var(--accent)}
+  .now-label{position:absolute;left:-36px;top:-8px;color:var(--accent);font-size:11px}
+
+  .sheet{position:fixed;left:0;right:0;bottom:-520px;background:#fff;border-radius:18px 18px 0 0;padding:16px;box-shadow:0 -8px 40px rgba(0,0,0,0.12);transition:bottom .28s;max-height:86vh;overflow:auto}
+  .sheet.open{bottom:0}
+  .handle{width:56px;height:6px;background:#ddd;border-radius:6px;margin:8px auto}
+  .sheet .row{display:flex;gap:12px}
+  .sheet img{width:128px;height:128px;object-fit:cover;border-radius:12px}
+  .actions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+  .btn{background:#f6f8fb;padding:12px;border-radius:12px;text-align:center;cursor:pointer}
+  .tiny{font-size:13px;color:#666}
+  .category-pill{display:inline-block;padding:6px 8px;border-radius:999px;background:#f1f6ff;color:#234;border:1px solid #e1e9ff;font-size:12px;margin-right:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="search">
+    <input id="kw" placeholder="キーワードで絞り込み (タイトル/場所)" />
+    <button id="searchBtn">検索</button>
+  </div>
+
+  <div class="timeline" id="timeline" aria-label="タイムテーブル (10時〜17時)">
+  </div>
+</div>
+
+<div class="sheet" id="sheet" role="dialog" aria-hidden="true">
+  <div class="handle"></div>
+  <div id="sheetContent"></div>
+</div>
+
+<script>
+const MINUTE_TO_PX = 2;
+const START_H=10, END_H=17;
+const timeline = document.getElementById('timeline');
+const sheet = document.getElementById('sheet');
+const sheetContent = document.getElementById('sheetContent');
+
+let events = [
+  {id:101,title:'オープニングトーク',start:'10:00',end:'10:30',place:'メインホール',description:'イベントのはじまりの挨拶です。',details:'出演者: AAA\n持ち物: 特になし',image:'file:///mnt/data/Screenshot 2025-11-23 22.29.07.png',category:'stage,performance',favorite:false},
+  {id:102,title:'ワークショップA',start:'11:00',end:'12:00',place:'Room A',description:'クリエイティブなワークショップ',details:'対象: 初心者歓迎\n注意: 汚れても良い服装で',image:'file:///mnt/data/Screenshot 2025-11-23 22.34.41.png',category:'kids,performance',favorite:false}
+];
+
+const favIds = JSON.parse(localStorage.getItem('fav_ids')||'[]');
+events.forEach(e=>{ e.favorite = favIds.includes(e.id) });
+
+function timeToMinutes(t){ const [h,m]=t.split(':').map(Number); return (h-START_H)*60 + m; }
+function pad(n){ return String(n).padStart(2,'0'); }
+
+function renderTimeline(filter=''){
+  timeline.innerHTML = '';
+  const totalMin = (END_H-START_H)*60;
+  timeline.style.minHeight = (totalMin * MINUTE_TO_PX + 40) + 'px';
+
+  const sLabel = document.createElement('div'); sLabel.style.position='absolute'; sLabel.style.left='-86px'; sLabel.style.top='0px'; sLabel.className='tiny'; sLabel.textContent='イベント開始'; timeline.appendChild(sLabel);
+  const eLabel = document.createElement('div'); eLabel.style.position='absolute'; eLabel.style.left='-86px'; eLabel.style.top=(totalMin*MINUTE_TO_PX)+'px'; eLabel.className='tiny'; eLabel.textContent='イベント終了'; timeline.appendChild(eLabel);
+
+  for(let m=0;m<=totalMin;m+=30){
+    const isHour = (m%60===0);
+    const row = document.createElement('div');
+    row.className='time-row';
+    row.style.top = (m*MINUTE_TO_PX) + 'px';
+    const tick = document.createElement('div');
+    tick.className = 'tick' + (isHour?' full':'');
+    row.appendChild(tick);
+    if(isHour){
+      const hourLabel = document.createElement('div');
+      const hour = START_H + (m/60);
+      hourLabel.className='label';
+      hourLabel.textContent = hour + ':00';
+      row.appendChild(hourLabel);
+    }
+    timeline.appendChild(row);
+  }
+
+  events.filter(ev => {
+    if (!filter) return true;
+    const composite = (ev.title + ' ' + ev.place + ' ' + ev.description).toLowerCase();
+    return composite.indexOf(filter.toLowerCase()) !== -1;
+  }).forEach(ev => {
+    const top = Math.max(0,timeToMinutes(ev.start)*MINUTE_TO_PX);
+    const height = Math.max(36,(timeToMinutes(ev.end)-timeToMinutes(ev.start))*MINUTE_TO_PX);
+    const box = document.createElement('div');
+    box.className='event-box';
+    box.style.top = top+'px';
+    box.style.height = height+'px';
+    box.setAttribute('data-category', ev.category||'');
+    box.innerHTML = `<div class="title">${ev.title}</div><div class="meta">${ev.start} - ${ev.end} ・ ${ev.place}</div>`;
+    box.addEventListener('click', ()=> openSheet(ev));
+    timeline.appendChild(box);
+  });
+
+  updateNowLine();
+}
+
+function updateNowLine(){
+  const now = new Date();
+  const mins = (now.getHours()-START_H)*60 + now.getMinutes();
+  const total = (END_H-START_H)*60;
+  const existing = document.getElementById('nowline');
+  if(mins<0 || mins>total){ if(existing) existing.remove(); return; }
+  let line = existing;
+  if(!line){
+    line = document.createElement('div'); line.id='nowline'; line.className='now-line';
+    const lbl = document.createElement('div'); lbl.className='now-label'; lbl.textContent='now';
+    line.appendChild(lbl);
+    timeline.appendChild(line);
+  }
+  line.style.top = (mins*MINUTE_TO_PX)+'px';
+}
+
+function openSheet(ev){
+  const details = ev.details ? ev.details.replace(/\n/g,'<br>') : '';
+  const cats = (ev.category||'').split(',').map(s=>s.trim()).filter(Boolean).map(c=>`<span class="category-pill">${c}</span>`).join(' ');
+  sheetContent.innerHTML = `
+    <div class="row">
+      <img src="${ev.image}" alt="${ev.title}" />
+      <div>
+        <h2 style="margin:0 0 8px 0">${ev.title}</h2>
+        <div class="tiny">${ev.start} - ${ev.end}</div>
+        <div class="tiny" style="margin-top:8px">場所: <a href="${ev.map||'#'}" target="_blank">${ev.place}</a></div>
+        <div style="margin-top:8px">${cats}</div>
+        <p style="margin-top:10px">${ev.description}</p>
+      </div>
+    </div>
+    <div class="actions">
+      <div class="btn" id="favBtn">${ev.favorite?'★ お気に入り済':'❤ お気に入り'}</div>
+      <div class="btn" id="shareBtn">🔗 共有</div>
+      <div class="btn" id="gcalBtn">🗓 Googleカレンダー</div>
+    </div>
+    <div style="margin-top:14px">
+      <h3 style="margin:0 0 8px 0">さらに詳細</h3>
+      <div class="tiny">${details}</div>
+    </div>
+  `;
+
+  document.getElementById('favBtn').onclick = ()=>{
+    ev.favorite = !ev.favorite;
+    const ids = JSON.parse(localStorage.getItem('fav_ids')||'[]');
+    if(ev.favorite){ if(!ids.includes(ev.id)) ids.push(ev.id); }
+    else { const idx = ids.indexOf(ev.id); if(idx>=0) ids.splice(idx,1); }
+    localStorage.setItem('fav_ids',JSON.stringify(ids));
+    openSheet(ev);
+  };
+
+  document.getElementById('shareBtn').onclick = ()=>{
+    const url = `${location.origin}${location.pathname}?ev=${ev.id}&mode=sub`;
+    if(navigator.share){
+      navigator.share({title:ev.title,text:'イベント詳細',url});
+    } else {
+      prompt('共有リンクをコピーしてください',url);
+    }
+  };
+
+  document.getElementById('gcalBtn').onclick = ()=>{
+    const start = gcalDateTime(ev.start);
+    const end = gcalDateTime(ev.end);
+    const url = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+      +'&text='+encodeURIComponent(ev.title)
+      +'&details='+encodeURIComponent(ev.description)
+      +'&location='+encodeURIComponent(ev.place)
+      +'&dates='+encodeURIComponent(start+'/'+end);
+    window.open(url,'_blank');
+  };
+
+  sheet.classList.add('open');
+  sheet.setAttribute('aria-hidden','false');
+}
+
+function gcalDateTime(hhmm){
+  const [hh,mm]=hhmm.split(':').map(Number);
+  const now=new Date();
+  const local=new Date(now.getFullYear(),now.getMonth(),now.getDate(),hh,mm,0);
+  const Y=local.getUTCFullYear();
+  const M=String(local.getUTCMonth()+1).padStart(2,'0');
+  const D=String(local.getUTCDate()).padStart(2,'0');
+  const H=String(local.getUTCHours()).padStart(2,'0');
+  const Min=String(local.getUTCMinutes()).padStart(2,'0');
+  const S='00';
+  return `${Y}${M}${D}T${H}${Min}${S}Z`;
+}
+
+sheet.addEventListener('click', e=>{ if(e.target===sheet){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); } });
+
+document.getElementById('searchBtn').addEventListener('click', ()=>{
+  const kw = document.getElementById('kw').value.trim();
+  renderTimeline(kw);
+});
+
+renderTimeline();
+
+// -----------------------------
+// URL解析で自動的にシート表示
+// -----------------------------
+window.addEventListener('DOMContentLoaded', ()=>{
+  const params = new URLSearchParams(location.search);
+  const evId = Number(params.get('ev'));
+  const mode = params.get('mode'); // "sub" で下部シート表示
+
+  if(isNaN(evId)) return;
+
+  const ev = events.find(e=>e.id===evId);
+  if(!ev) return;
+
+  if(mode==='sub') setTimeout(()=>openSheet(ev),300);
+});
+</script>
+</body>
+</html>
