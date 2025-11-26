@@ -80,7 +80,7 @@
   <div class="pill-box" id="evCategory"></div>
 
   <div class="actions">
-    <div class="btn" id="favBtn">❤ お気に入り</div>
+    <div class="btn" id="favBtn">❤ お気に入</div>
     <div class="btn" id="shareBtn">🔗 共有（フル）</div>
     <div class="btn" id="shareSelectBtn">🔗 共有（選択）</div>
     <div class="btn" id="gcalBtn">🗓 Googleカレンダー</div>
@@ -169,7 +169,7 @@ function renderPage(){
   // お気に入りボタン
   const favBtn = document.getElementById('favBtn');
   favBtn.classList.remove('favorite-active');
-  favBtn.textContent = '❤ お気に入り';
+  favBtn.textContent = '❤ お気に入';
   if(ev.favorite){ favBtn.classList.add('favorite-active'); favBtn.textContent='★ お気に入り済'; }
 
   favBtn.onclick = ()=>{
@@ -183,7 +183,7 @@ function renderPage(){
     localStorage.setItem('fav_ids',JSON.stringify(ids));
     // update UI without re-running full render to keep stable state
     if(ev.favorite){ favBtn.classList.add('favorite-active'); favBtn.textContent='★ お気に入り済'; }
-    else { favBtn.classList.remove('favorite-active'); favBtn.textContent='❤ お気に入り'; }
+    else { favBtn.classList.remove('favorite-active'); favBtn.textContent='❤ お気に入'; }
   };
 
   // 共有 (フルURL by default)
