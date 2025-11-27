@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>マイページ | レトロこみちイベント</title>
+<style>
+  :root{
+    --bg:#f7fbff;
+    --card:#ffffff;
+    --muted:#6b7280;
+    --accent:#4aa3d9; /* main flat blue */
+    --accent-2:#7ad7b8; /* flat green */
+    --danger:#e75656;
+    --soft:#eef6fb;
+    --radius:12px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family: "Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,Segoe UI,Roboto,Arial;background:var(--bg);color:#24303a}
+  .wrap{max-width:1000px;margin:28px auto;padding:20px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:56px;height:56px;border-radius:10px;background:linear-gradient(180deg,var(--accent),#6fb7dd);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:18px;box-shadow:0 6px 18px rgba(10,60,100,0.08)}
+  h1{font-size:1.2rem;margin:0}
+  .controls{display:flex;gap:10px;align-items:center}
+  button{background:var(--soft);border:0;padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600}
+  .btn-primary{background:linear-gradient(180deg,var(--accent),#3b93c8);color:white}
+  .btn-danger{background:linear-gradient(180deg,var(--danger),#d94a4a);color:white}
+  .grid{display:grid;grid-template-columns:1fr 360px;gap:18px}
+  .card{background:var(--card);border-radius:var(--radius);padding:14px;box-shadow:0 6px 18px rgba(20,40,60,0.04)}
+  .section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .fav-list{display:flex;flex-direction:column;gap:10px}
+  .fav-item{display:flex;gap:12px;align-items:flex-start;padding:10px;border-radius:12px;border:1px solid #eef4f9}
+  .thumb{width:96px;height:64px;border-radius:8px;background:#ddd;flex:0 0 96px;object-fit:cover}
+  .meta{flex:1}
+  .meta h3{margin:0;font-size:1rem}
+  .meta .sub{color:var(--muted);font-size:13px;margin-top:6px}
+  .actions{display:flex;gap:8px;margin-top:8px}
+  .tiny{font-size:13px;color:var(--muted)}
+  .row{display:flex;gap:10px;align-items:center}
+  .mini-tl{margin-top:12px}
+  .timeline-list{display:flex;flex-direction:column;gap:8px}
+  .tl-row{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:10px;background:linear-gradient(180deg,#ffffff,#fbfeff);border:1px solid #eef7fb}
+  .alert{padding:8px;border-radius:10px;background:linear-gradient(180deg,#fff6f6,#fff2f2);color:var(--danger);border:1px solid #ffd6d6}
+  .chart-wrap{display:flex;align-items:center;gap:12px}
+  canvas{max-width:100%}
+  .badge-shelf{display:flex;gap:10px;flex-wrap:wrap}
+  .badge{width:72px;height:72px;border-radius:10px;background:#f4fbff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;color:var(--muted);border:1px dashed #e6f2fb}
+  .badge.locked{opacity:0.36}
+  .share-area{display:flex;gap:8px;flex-direction:column}
+  .input{padding:8px;border-radius:8px;border:1px solid #e6eef5;background:#fbfeff}
+  .memo-box{width:100%;padding:8px;border-radius:8px;border:1px solid #e6eef5;background:#fbfeff}
+  .small{font-size:13px;color:var(--muted)}
+  footer{margin-top:20px;text-align:center;color:var(--muted);font-size:13px}
+  /* sheet style (reuse similar to timetable) */
+  .sheet{position:fixed;left:0;right:0;bottom:-520px;background:#fff;border-radius:18px 18px 0 0;padding:16px;box-shadow:0 -8px 40px rgba(0,0,0,0.12);transition:bottom .28s;max-height:86vh;overflow:auto}
+  .sheet.open{bottom:0}
+  .handle{width:56px;height:6px;background:#ddd;border-radius:6px;margin:8px auto}
+  .flexcol{display:flex;flex-direction:column}
+  .muted{color:var(--muted)}
+  .qr{width:124px;height:124px;border-radius:8px;background:#fff;border:1px solid #e6eef5;display:block}
+  .pill{padding:6px 8px;border-radius:999px;background:#f1fbff;border:1px solid #e6f3fb;font-size:12px;color:#256}
+  .right{margin-left:auto}
+  .danger-link{color:var(--danger);cursor:pointer;text-decoration:underline}
+  @media(max-width:980px){
+    .grid{grid-template-columns:1fr; padding-bottom:80px}
+    .controls{flex-wrap:wrap}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo">RC</div>
+      <div>
+        <h1>マイページ — レトロこみちイベント</h1>
+        <div class="small muted">お気に入りを集めて、ポイントをためよう</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="small muted" id="pointSummary">ポイント: 0pt</div>
+      <button id="btnUnfav" title="すべてのお気に入りを外す">一括お気に入り解除</button>
+      <button id="btnResetAll" class="btn-danger" title="ローカルデータを全て消去">リセット（全）</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- main column -->
+    <div>
+      <div class="card">
+        <div class="section-title">
+          <strong>お気に入り一覧</strong>
+          <div class="tiny">保存したお気に入りを管理できます</div>
+        </div>
+
+        <div id="favList" class="fav-list">
+          <!-- favorite items injected here -->
+        </div>
+
+        <div style="margin-top:12px" class="small muted">
+          <label><input type="checkbox" id="autoOpenShared" /> シェアリンクを開いた際、自動で該当イベント詳細を開く</label>
+        </div>
+
+      </div>
+
+      <div class="card mini-tl" style="margin-top:14px;">
+        <div class="section-title">
+          <strong>ミニタイムライン（お気に入り）</strong>
+          <div class="tiny">お気に入りだけを時間順に表示します</div>
+        </div>
+
+        <div id="overlapAlert" style="display:none" class="alert"></div>
+
+        <div id="timelineMini" class="timeline-list">
+          <!-- timeline rows -->
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <div class="section-title">
+          <strong>シェア / QR</strong>
+          <div class="tiny">友達にお気に入りやポイントを簡単共有</div>
+        </div>
+
+        <div class="share-area">
+          <div class="row" style="align-items:center;">
+            <input id="shareUrl" class="input" readonly style="flex:1"/>
+            <button id="copyShare" class="btn-primary">コピー</button>
+          </div>
+
+          <div class="row" style="margin-top:8px;">
+            <button id="genText" >共有用テキスト生成</button>
+            <button id="genQr" >QR を表示</button>
+            <button id="openShare" >リンクを新しいタブで開く</button>
+          </div>
+
+          <div style="display:flex;gap:12px;margin-top:8px;align-items:center">
+            <img id="qrImg" class="qr" src="" alt="QR" style="display:none"/>
+            <textarea id="shareText" class="input" rows="4" placeholder="シェア用テキストがここに出ます"></textarea>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- right column -->
+    <aside>
+      <div class="card">
+        <div class="section-title"><strong>ポイント進捗</strong><div class="tiny">目標: 200pt</div></div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="width:140px;height:140px;display:flex;align-items:center;justify-content:center">
+            <canvas id="pointsChart" width="140" height="140"></canvas>
+          </div>
+          <div style="flex:1">
+            <div id="pointsText" style="font-size:1.4rem;font-weight:700">0 / 200 pt</div>
+            <div class="small muted" id="rankText">称号: -</div>
+            <div style="margin-top:12px" class="small muted">行ったイベント数: <span id="doneCount">0</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="section-title"><strong>あなたのバッジ</strong><div class="tiny">ポイントで自動的に付与されます</div></div>
+        <div id="badgeShelf" class="badge-shelf">
+          <!-- badges injected -->
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="section-title"><strong>設定・データ</strong><div class="tiny">メモやお気に入りを管理</div></div>
+        <div class="small muted">お気に入り数: <span id="favCount">0</span></div>
+        <div style="margin-top:8px" class="row">
+          <button id="btnClearFavs">お気に入りのみリセット</button>
+          <button id="btnClearMemo">メモを全部消す</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <footer>
+    <div>© レトロこみちイベント</div>
+  </footer>
+</div>
+
+<!-- detail sheet (reused) -->
+<div id="sheet" class="sheet" aria-hidden="true">
+  <div class="handle"></div>
+  <div id="sheetContent" style="padding-bottom:40px"></div>
+</div>
+
+<script>
+/*
+  mypage.html
+  - uses localStorage keys:
+    fav_ids: [id,...]
+    done_ids: [id,...]
+    memo_<id>: "text"
+  - 1 event = 10 points
+  - goal = 200pt (changeable)
+  - share URL format: current_path?fav=101,102&done=101,205
+*/
+
+// Sample events: replace or merge with your real events array if needed.
+let events = [
+  {id:101,title:'オープニングトーク',start:'10:00',end:'10:30',place:'メインホール',description:'イベントのはじまりの挨拶です。',details:'出演者: AAA\n持ち物: 特になし',image:'https://picsum.photos/seed/101/400/240',category:'stage'},
+  {id:102,title:'ワークショップA',start:'11:00',end:'12:00',place:'Room A',description:'クリエイティブなワークショップ',details:'対象: 初心者歓迎\n注意: 汚れても良い服装で',image:'https://picsum.photos/seed/102/400/240',category:'workshop'},
+  {id:103,title:'昭和写真トーク',start:'12:30',end:'13:30',place:'ギャラリー',description:'昭和の写真についてのトークショー',details:'ゲスト: 鈴木太郎',image:'https://picsum.photos/seed/103/400/240',category:'talk'},
+  {id:104,title:'音楽ライブ',start:'14:00',end:'15:00',place:'ステージ前',description:'レトロバンドのライブ',details:'演奏: レトロBAND',image:'https://picsum.photos/seed/104/400/240',category:'stage'},
+  {id:105,title:'展示解説',start:'15:30',end:'16:00',place:'展示室',description:'展示の見どころを紹介',details:'解説: 学芸員',image:'https://picsum.photos/seed/105/400/240',category:'exhibit'}
+];
+
+// config
+const POINT_PER_EVENT = 10;
+const POINT_GOAL = 200;
+
+const $ = id => document.getElementById(id);
+const favListEl = $('favList');
+const timelineEl = $('timelineMini');
+const pointSummaryEl = $('pointSummary');
+const pointsCanvas = $('pointsChart');
+const pointsText = $('pointsText');
+const rankText = $('rankText');
+const doneCountEl = $('doneCount');
+const badgeShelf = $('badgeShelf');
+const favCountEl = $('favCount');
+const overlapAlertEl = $('overlapAlert');
+const shareUrlEl = $('shareUrl');
+const qrImgEl = $('qrImg');
+const shareTextEl = $('shareText');
+
+function getLocalArr(key){ try{ return JSON.parse(localStorage.getItem(key)||'[]'); }catch(e){ return []; } }
+function setLocalArr(key,arr){ localStorage.setItem(key, JSON.stringify(arr)); }
+
+let favIds = getLocalArr('fav_ids');
+let doneIds = getLocalArr('done_ids');
+let autoOpenShared = true;
+
+// if query contains fav/done, optionally apply
+function applyQueryParamsOnLoad(){
+  const params = new URLSearchParams(location.search);
+  const favParam = params.get('fav');
+  const doneParam = params.get('done');
+  const auto = params.get('auto');
+  if(favParam){
+    const ids = favParam.split(',').map(s=>Number(s)).filter(Boolean);
+    if(ids.length) { favIds = Array.from(new Set([...favIds,...ids])); setLocalArr('fav_ids',favIds); }
+  }
+  if(doneParam){
+    const ids = doneParam.split(',').map(s=>Number(s)).filter(Boolean);
+    if(ids.length){ doneIds = Array.from(new Set([...doneIds,...ids])); setLocalArr('done_ids',doneIds); }
+  }
+  if(auto==='0') autoOpenShared=false;
+}
+applyQueryParamsOnLoad();
+
+function renderAll(){
+  renderFavList();
+  renderMiniTimeline();
+  renderPoints();
+  renderBadges();
+  favCountEl.textContent = favIds.length;
+  // update share url
+  shareUrlEl.value = genShareUrl();
+}
+function renderFavList(){
+  favListEl.innerHTML = '';
+  if(favIds.length===0){
+    favListEl.innerHTML = '<div class="tiny muted">お気に入りに入れたイベントはここに表示されます。</div>';
+    return;
+  }
+  const favEvents = events.filter(e=>favIds.includes(e.id));
+  favEvents.forEach(ev=>{
+    const div = document.createElement('div');
+    div.className='fav-item';
+    div.innerHTML = `
+      <img class="thumb" src="${ev.image}" alt="${ev.title}">
+      <div class="meta">
+        <h3>${ev.title}</h3>
+        <div class="sub">${ev.start} - ${ev.end} ・ ${ev.place} ・ <span class="pill">${ev.category}</span></div>
+        <div class="actions">
+          <button class="openBtn">詳細</button>
+          <button class="btnFavToggle">${isFav(ev.id)?'お気に入り済':'お気に入り'}</button>
+          <label style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" class="doneChk" ${isDone(ev.id)?'checked':''}> 行った</label>
+          <button class="memoBtn">メモ</button>
+        </div>
+        <div style="margin-top:8px"><div class="small muted">メモ:</div><div id="memo_${ev.id}" class="small" style="min-height:18px">${getMemo(ev.id)||'<span class=muted>（メモなし）</span>'}</div></div>
+      </div>
+    `;
+    favListEl.appendChild(div);
+
+    div.querySelector('.openBtn').addEventListener('click',()=> openSheet(ev));
+    div.querySelector('.btnFavToggle').addEventListener('click',()=>{
+      toggleFav(ev.id);
+      renderAll();
+    });
+    div.querySelector('.doneChk').addEventListener('change',(e)=>{
+      toggleDone(ev.id,e.target.checked);
+      renderAll();
+    });
+    div.querySelector('.memoBtn').addEventListener('click',()=>{
+      openMemoPrompt(ev);
+    });
+  });
+}
+
+function renderMiniTimeline(){
+  timelineEl.innerHTML='';
+  if(favIds.length===0){ timelineEl.innerHTML='<div class="muted small">お気に入りがありません</div>'; overlapAlertEl.style.display='none'; return; }
+  const favEvents = events.filter(e=>favIds.includes(e.id)).sort((a,b)=> timeToMinutes(a.start)-timeToMinutes(b.start));
+  favEvents.forEach(ev=>{
+    const row = document.createElement('div');
+    row.className='tl-row';
+    row.innerHTML = `<div><strong>${ev.start}</strong> ${ev.title}</div><div class="row"><div class="small muted">${ev.place}</div><div style="width:12px"></div><button class="openBtn">詳細</button></div>`;
+    timelineEl.appendChild(row);
+    row.querySelector('.openBtn').addEventListener('click',()=> openSheet(ev));
+  });
+
+  // overlap check
+  const overlaps = findOverlaps(favEvents);
+  if(overlaps.length){
+    overlapAlertEl.style.display='block';
+    overlapAlertEl.innerHTML = `⚠ 以下の時間が重なっています：<br>${overlaps.map(pair=>`${pair[0].title}（${pair[0].start}-${pair[0].end}） と ${pair[1].title}（${pair[1].start}-${pair[1].end}）`).join('<br>')}`;
+  } else {
+    overlapAlertEl.style.display='none';
+  }
+}
+
+function findOverlaps(list){
+  // list is sorted by start time
+  const out = [];
+  for(let i=0;i<list.length;i++){
+    for(let j=i+1;j<list.length;j++){
+      if(isOverlap(list[i].start,list[i].end,list[j].start,list[j].end)){
+        out.push([list[i],list[j]]);
+      }
+    }
+  }
+  return out;
+}
+function isOverlap(s1,e1,s2,e2){
+  const a = timeToMinutes(s1), b = timeToMinutes(e1), c = timeToMinutes(s2), d = timeToMinutes(e2);
+  return Math.max(a,c) < Math.min(b,d);
+}
+function timeToMinutes(t){ const [hh,mm] = t.split(':').map(Number); return hh*60+mm; }
+
+function openSheet(ev){
+  const details = ev.details ? ev.details.replace(/\n/g,'<br>') : '';
+  const memo = getMemo(ev.id);
+  const favBtnText = isFav(ev.id)?'お気に入り解除':'お気に入りに追加';
+  const doneChk = isDone(ev.id) ? 'checked' : '';
+  $('sheetContent').innerHTML = `
+    <div style="display:flex;gap:12px">
+      <img src="${ev.image}" style="width:160px;height:96px;object-fit:cover;border-radius:8px">
+      <div style="flex:1">
+        <h2 style="margin:0 0 6px 0">${ev.title}</h2>
+        <div class="small muted">${ev.start} - ${ev.end} ・ ${ev.place} ・ <span class="pill">${ev.category}</span></div>
+        <p style="margin-top:8px">${ev.description}</p>
+        <div style="margin-top:6px" class="small muted">詳細:</div>
+        <div class="tiny" style="margin-top:6px">${details}</div>
+        <div style="margin-top:10px" class="row">
+          <button id="sheetFavBtn">${favBtnText}</button>
+          <label style="display:inline-flex;align-items:center;gap:6px"><input id="sheetDone" type="checkbox" ${doneChk}> 行った</label>
+          <button id="sheetShare">共有</button>
+        </div>
+        <div style="margin-top:8px">
+          <div class="small muted">メモ</div>
+          <textarea id="sheetMemo" class="memo-box" rows="3">${memo||''}</textarea>
+          <div style="margin-top:8px" class="row">
+            <button id="saveMemoBtn" class="btn-primary">保存</button>
+            <button id="closeSheet" style="margin-left:auto">閉じる</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  $('sheet').classList.add('open'); $('sheet').setAttribute('aria-hidden','false');
+
+  $('sheetFavBtn').addEventListener('click',()=>{
+    toggleFav(ev.id);
+    renderAll();
+    openSheet(ev); // refresh sheet
+  });
+  $('sheetDone').addEventListener('change',(e)=>{
+    toggleDone(ev.id,e.target.checked);
+    renderAll();
+  });
+  $('saveMemoBtn').addEventListener('click',()=>{
+    const txt = $('sheetMemo').value.trim();
+    saveMemo(ev.id,txt);
+    renderAll();
+    alert('メモを保存しました');
+  });
+  $('closeSheet').addEventListener('click',()=>{
+    $('sheet').classList.remove('open'); $('sheet').setAttribute('aria-hidden','true');
+  });
+  $('sheetShare').addEventListener('click',()=>{
+    const url = genShareUrl();
+    copyTextToClipboard(url);
+    alert('共有リンクをコピーしました');
+  });
+
+  // auto-open logic for links with ev param could be added, but kept simple here
+}
+
+$('sheet').addEventListener('click', e => { if(e.target === $('sheet')){ $('sheet').classList.remove('open'); $('sheet').setAttribute('aria-hidden','true'); } });
+
+// favorites toggle
+function isFav(id){ return favIds.includes(id); }
+function toggleFav(id){
+  if(isFav(id)){ favIds = favIds.filter(x=>x!==id); } else { favIds.push(id); }
+  setLocalArr('fav_ids',favIds);
+}
+function isDone(id){ return doneIds.includes(id); }
+function toggleDone(id,checked){
+  if(checked){
+    if(!doneIds.includes(id)) doneIds.push(id);
+  } else {
+    doneIds = doneIds.filter(x=>x!==id);
+  }
+  setLocalArr('done_ids',doneIds);
+}
+
+// memos
+function saveMemo(id,txt){ localStorage.setItem('memo_'+id,txt); }
+function getMemo(id){ return localStorage.getItem('memo_'+id) || ''; }
+function openMemoPrompt(ev){
+  const prev = getMemo(ev.id);
+  const s = prompt(`「${ev.title}」のメモを入力してください（空欄で削除）`,prev||'');
+  if(s===null) return;
+  const trimmed = s.trim();
+  if(trimmed) saveMemo(ev.id,trimmed);
+  else localStorage.removeItem('memo_'+ev.id);
+  renderAll();
+}
+
+// sharing
+function genShareUrl(){
+  const base = location.origin + location.pathname;
+  const fav = favIds.join(',');
+  const done = doneIds.join(',');
+  const auto = $('autoOpenShared') ? '1' : '0';
+  const parts = [];
+  if(fav) parts.push('fav='+encodeURIComponent(fav));
+  if(done) parts.push('done='+encodeURIComponent(done));
+  parts.push('auto=' + (auto==='1' ? '1' : '0'));
+  return base + (parts.length ? ('?'+parts.join('&')) : '');
+}
+function copyTextToClipboard(text){
+  navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(text) : (function(){ const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove(); })();
+}
+
+// share controls
+$('copyShare').addEventListener('click',()=>{
+  const url = genShareUrl();
+  copyTextToClipboard(url);
+  alert('共有リンクをコピーしました');
+});
+$('openShare').addEventListener('click',()=>{
+  const url = genShareUrl();
+  window.open(url,'_blank');
+});
+$('genText').addEventListener('click', ()=>{
+  const txt = buildShareText();
+  shareTextEl.value = txt;
+  copyTextToClipboard(txt);
+  alert('共有テキストを生成＆コピーしました（貼り付けて共有できます）');
+});
+$('genQr').addEventListener('click', ()=>{
+  const url = genShareUrl();
+  const qrUrl = 'https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=' + encodeURIComponent(url);
+  qrImgEl.src = qrUrl;
+  qrImgEl.style.display = 'block';
+});
+
+// build share text
+function buildShareText(){
+  const pts = computePoints();
+  const favEvents = events.filter(e=>favIds.includes(e.id));
+  const doneEvents = events.filter(e=>doneIds.includes(e.id));
+  const lines = [];
+  lines.push('私のレトロこみちポイント: ' + pts + 'pt');
+  lines.push('');
+  if(doneEvents.length){
+    lines.push('行ったイベント:');
+    doneEvents.forEach(e=> lines.push(`・${e.title}（${e.start}）`));
+    lines.push('');
+  }
+  if(favEvents.length){
+    lines.push('お気に入り:');
+    favEvents.forEach(e=> lines.push(`・${e.title}（${e.start}）`));
+    lines.push('');
+  }
+  lines.push('お気に入りを開く：' + genShareUrl());
+  return lines.join('\n');
+}
+
+// points & chart
+function computePoints(){ return doneIds.length * POINT_PER_EVENT; }
+
+function renderPoints(){
+  const pts = computePoints();
+  pointSummaryEl.textContent = `ポイント: ${pts}pt`;
+  pointsText.textContent = `${pts} / ${POINT_GOAL} pt`;
+  doneCountEl.textContent = doneIds.length;
+
+  // rank text (simple thresholds)
+  const rank = pts >= 200 ? 'レトロこみち王' : pts >= 100 ? 'レトロマスター' : pts >= 50 ? '初級レトロウォーカー' : 'ビギナー';
+  rankText.textContent = '称号: ' + rank;
+
+  // draw donut chart on canvas (simple)
+  const canvas = pointsCanvas;
+  const ctx = canvas.getContext('2d');
+  const size = Math.min(canvas.width, canvas.height);
+  const cx = canvas.width/2, cy = canvas.height/2, r = size/2 - 6;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // background circle (goal)
+  ctx.beginPath();
+  ctx.arc(cx,cy,r,0,Math.PI*2);
+  ctx.fillStyle = '#f3fbff';
+  ctx.fill();
+
+  const ratio = Math.min(1, pts / POINT_GOAL);
+  const start = -Math.PI/2;
+  const end = start + ratio * Math.PI*2;
+
+  // filled arc (accent color)
+  ctx.beginPath();
+  ctx.moveTo(cx,cy);
+  ctx.arc(cx,cy,r,start,end);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(74,163,217,0.95)';
+  ctx.fill();
+
+  // cut center to make donut
+  ctx.beginPath();
+  ctx.arc(cx,cy,r*0.62,0,Math.PI*2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+
+  // text in center
+  ctx.fillStyle = '#24303a';
+  ctx.font = '700 14px system-ui,Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(Math.round(ratio*100) + '%', cx, cy-6);
+  ctx.font = '600 11px system-ui';
+  ctx.fillText(pts + 'pt', cx, cy+14);
+}
+
+// badges (simple flat icons)
+const BADGE_DEFS = [
+  {id:'b1',title:'初級レトロウォーカー',threshold:50},
+  {id:'b2',title:'レトロマスター',threshold:100},
+  {id:'b3',title:'レトロこみち王',threshold:200},
+];
+function renderBadges(){
+  badgeShelf.innerHTML='';
+  const pts = computePoints();
+  BADGE_DEFS.forEach(b=>{
+    const el = document.createElement('div');
+    el.className = 'badge ' + (pts >= b.threshold ? '' : 'locked');
+    el.innerHTML = `<div style="font-size:12px">${b.title}</div><div class="small muted" style="margin-top:6px">${b.threshold}pt</div>`;
+    badgeShelf.appendChild(el);
+  });
+}
+
+// bulk actions
+$('btnUnfav').addEventListener('click', ()=>{
+  if(!confirm('本当にすべてのお気に入りを解除しますか？')) return;
+  favIds = [];
+  setLocalArr('fav_ids',favIds);
+  renderAll();
+});
+$('btnResetAll').addEventListener('click', ()=>{
+  if(!confirm('ローカルデータ（お気に入り・行った・メモ 等）をすべて消去しますか？戻せません。')) return;
+  localStorage.clear();
+  favIds = []; doneIds = [];
+  renderAll();
+});
+$('btnClearFavs').addEventListener('click', ()=>{
+  if(!confirm('お気に入りだけをリセットします。よろしいですか？')) return;
+  favIds = []; setLocalArr('fav_ids',favIds); renderAll();
+});
+$('btnClearMemo').addEventListener('click', ()=>{
+  if(!confirm('メモをすべて削除します。よろしいですか？')) return;
+  for(const k in localStorage) if(k.startsWith('memo_')) localStorage.removeItem(k);
+  renderAll();
+});
+
+// helper to build fav/done arrays on load if none exist
+if(!Array.isArray(favIds)) favIds = [];
+if(!Array.isArray(doneIds)) doneIds = [];
+
+// UI: open share url on load if params requested (auto open)
+window.addEventListener('DOMContentLoaded', ()=>{
+  // if URL has ev param? (not used here)
+  renderAll();
+});
+
+// utils
+function genListFromIds(ids){ return ids.map(id=> events.find(e=>e.id===id)).filter(Boolean); }
+
+function computeCategoryDistribution(){
+  // for doneIds, count categories
+  const doneEvents = genListFromIds(doneIds);
+  const map = {};
+  doneEvents.forEach(e=>{ map[e.category] = (map[e.category]||0) + 1; });
+  return map;
+}
+
+// build share text and set url initially
+shareUrlEl.value = genShareUrl();
+
+// auto open shared option control
+$('autoOpenShared').addEventListener('change', (e)=> {
+  // just store the preference visually - doesn't affect URL here
+});
+
+// when URL loads with fav/done, if autoOpenShared true and a single event exist, open it
+(function(){
+  const params = new URLSearchParams(location.search);
+  const evId = Number(params.get('ev'));
+  const auto = params.get('auto');
+  if(evId && auto !== '0'){
+    const ev = events.find(x=>x.id===evId);
+    if(ev) setTimeout(()=> openSheet(ev), 300);
+  }
+})();
+
+</script>
+</body>
+</html>
